@@ -1,3 +1,32 @@
+create table customers(
+	customer_id	text	primary key,
+	customer_unique_id	text	not null,
+	customer_zip_code_prefix	text,	
+	customer_city	text,	
+	customer_state	text	
+);		
+
+CREATE TABLE orders (
+    order_id TEXT PRIMARY KEY,
+    customer_id TEXT NOT NULL,
+    order_status TEXT NOT NULL,
+    order_purchase_timestamp TIMESTAMP,
+    order_approved_at TIMESTAMP,
+    order_delivered_carrier_date TIMESTAMP,
+    order_delivered_customer_date TIMESTAMP,
+    order_estimated_delivery_date TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+
+CREATE TABLE payments (
+    order_id TEXT NOT NULL,
+    payment_sequential INT,
+    payment_type TEXT,
+    payment_installments INT,
+    payment_value NUMERIC,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+
 CREATE TABLE order_items (
     order_id TEXT,
     order_item_id INT,
@@ -6,29 +35,7 @@ CREATE TABLE order_items (
     shipping_limit_date TIMESTAMP,
     price NUMERIC,
     freight_value NUMERIC
-);A
-SELECT COUNT(*) FROM order_items;
-
-
-SELECT COUNT(*),
-FROM order_items oi
-JOIN orders o
-ON oi.order_id = o.order_id;
-
-SELECT COUNT(*) 
-FROM order_items
-WHERE order_id IS NULL 
-   OR product_id IS NULL;
-
-SELECT *
-FROM order_items
-WHERE price < 0 OR freight_value < 0;
-
-SELECT order_id, order_item_id, COUNT(*)
-FROM order_items
-GROUP BY order_id, order_item_id
-HAVING COUNT(*) > 1;
-
+);
 
 CREATE TABLE products (
     product_id TEXT,
@@ -41,55 +48,196 @@ CREATE TABLE products (
     product_height_cm INT,
     product_width_cm INT
 );
-select * from products;
-
-select * from order_items;
 
 
-SELECT COUNT(*) FROM products;
-
-SELECT COUNT(*)
-FROM products
-WHERE product_id IS NULL;
-
-SELECT COUNT(*)
-FROM products
-WHERE product_category_name IS NULL;
-
-SELECT *
-FROM products
-WHERE product_weight_g < 0
-   OR product_length_cm < 0
-   OR product_height_cm < 0
-   OR product_width_cm < 0;
+-- 1) Overall Buiseness Performance Sumary
+select sum(p.payment_value) as total_revenue,
+count(distinct o.order_id) as total_orders,
+count(distinct c.customer_unique_id) as total_customers
+from payments p 
+join orders o on o.order_id = p.order_id
+join customers c on c.customer_id = o.customer_id
+where o.order_status = 'delivered';
 
 
-   SELECT COUNT(*)
-FROM order_items oi
-JOIN products p
-ON oi.product_id = p.product_id;
+-- 2) Identify the top 5 months with the highest number of orders
+select 
+	date_trunc('month', o.order_purchase_timestamp) as months,
+	count(o.order_id) as total_orders 
+from orders o 
+group by months order by 
+total_orders desc LIMIT 5;
+
+--  3) Calculate Average Order Value
+select round(sum(p.payment_value)/count(distinct o.order_id ),2) as avg_order_vqlue
+from payments p
+join orders o 
+	on o.order_id = p.order_id
+where o.order_status = 'delivered';
 
 
-SELECT COUNT(*)
-FROM order_items oi
-LEFT JOIN products p
-ON oi.product_id = p.product_id
-WHERE p.product_id IS NULL;
+-- 4) Calculate total amount spent by each customer
+select 
+	c.customer_unique_id, 
+	sum(p.payment_value) as total_spent 
+from customers c 
+join orders o 
+	on o.customer_id = c.customer_id 
+join payments p 
+	on p.order_id = o.order_id 
+--where o.order_status = 'delivered'
+group by c.customer_unique_id 
+order by total_spent desc;
 
 
---15) Product Category Revenue and Contribution Analysis
-with category_revenue as(select p.product_category_name,sum(o.price) as total
-from order_items o
-join products p
-	on o.product_id = p.product_id
-group by p.product_category_name)
+-- 5) What are the monthly revenue trends over time? 
+select 
+	date_trunc('month', o.order_purchase_timestamp ) as months, 
+	sum(payment_value) as revenue 
+from orders o 
+join payments p 
+	on p.order_id = o.order_id 
+group by months 
+order by months;
 
-select product_category_name, total,
-round((total / sum(total) over()) * 100,2) as category_contribution_per
-from category_revenue
-order by total desc;
 
---16) Which product categories generate the highest average order value?
+-- 6) Classify customers as one-time or repeat based on number of orders 
+select round(100 * count(*) filter(where total_orders > 1)/ count(*),2) as repeat_customer_percentage
+from
+ 	(select c.customer_unique_id, count(o.order_id) as total_orders
+	from customers c
+	join orders o 
+		on o.customer_id = c.customer_id
+	group by c.customer_unique_id
+)abc;
+
+
+-- 7)Calculate average delivery time for all orders
+select 
+	avg( order_delivered_customer_date - order_purchase_timestamp ) as dilivery_time 
+from orders
+where order_delivered_customer_date is not null;
+
+-- 8)Classify orders based on delivery performance 
+select 
+	order_id, 
+	case 
+		when order_status <> 'delivered' 
+        then 'not delivered'
+		when order_delivered_customer_date > 
+		order_estimated_delivery_date 
+		then 'late order' 
+		else 'on time' 
+	end 
+	as dilivery_status 
+from orders;
+
+
+-- 9)Count late deliveries 
+select 
+	count(order_id) as late_orders 
+from orders 
+where order_delivered_customer_date > order_estimated_delivery_date;
+
+
+-- 10) What Percentage of Orders Were Delivered Late? 
+select 
+	round( 
+		100.0 * sum(
+		   case 
+		   	  when order_delivered_customer_date > 
+		order_estimated_delivery_date then 1 
+		      else 0 
+			end
+	)/ count(*), 
+	2) as late_delivery_percentage 
+from orders
+where order_status = 'delivered';
+
+
+--11) Number of New Customers per Month
+with first_order as (
+select c.customer_unique_id,
+min(order_purchase_timestamp) as first_purchase
+from customers c 
+join orders o
+	on o.customer_id = c.customer_id
+group by c.customer_unique_id
+)
+select date_trunc('month', first_purchase) as months,
+count(*) as new_cusromer
+from first_order
+group by months
+order by months;
+
+
+--12) Rank Customers by Total Spending
+with customers_total as (
+	select 
+		c.customer_unique_id, 
+		sum(p.payment_value) as total_spent 
+    from payments p 
+	join orders o 
+		on o.order_id = p.order_id 
+	join customers c
+        on c.customer_id = o.customer_id
+	group by c.customer_unique_id
+) 
+select 
+	customer_unique_id,
+	total_spent, 
+	rank() over (order by total_spent desc )
+from customers_total;
+
+
+--13) Month-over-Month Revenue Growth Analysis
+WITH monthly_revenue AS (
+    SELECT 
+        date_trunc('month', order_purchase_timestamp) AS months, 
+        SUM(p.payment_value) AS monthly_revenue
+    FROM payments p 
+    JOIN orders o 
+        ON o.order_id = p.order_id 
+    GROUP BY months
+),
+lag_revenue AS (
+    SELECT 
+        months, 
+        monthly_revenue, 
+        LAG(monthly_revenue) OVER (ORDER BY months) AS previous_month_revenue
+    FROM monthly_revenue
+)
+SELECT 
+    months,
+    monthly_revenue,
+    previous_month_revenue,
+    (monthly_revenue - previous_month_revenue)
+/ previous_month_revenue * 100 AS growth_percentage
+FROM lag_revenue;
+
+
+--14) Top 10 Customers by Revenue Contribution
+with customer_total as(select 
+	c.customer_unique_id, sum(p.payment_value) as total_spent 
+from payments p
+join orders o
+	on p.order_id = o.order_id
+JOIN customers c
+    ON c.customer_id = o.customer_id
+	group by c.customer_unique_id),
+	
+ranked_revenue as (
+select customer_unique_id,total_spent,
+rank() over (order by total_spent desc) as spending_rank,
+round((total_spent / sum(total_spent) over  ()) * 100,2)
+    as contribution_percentage
+from customer_total
+)
+select * from ranked_revenue 
+where spending_rank<=10;
+
+
+--15) Average Order Value by Product Category
 select p.product_category_name, 
 sum(o.price + o.freight_value) as total_revenue,
 count(distinct o.order_id) as total_orders,
@@ -104,7 +252,7 @@ group by p.product_category_name
 order by avg_order_value desc;
 
 
---17) Month-over-Month Revenue Growth by Product Category
+--16) Month-over-Month Revenue Growth by Product Category
 with current_month_rev as(
 select sum(price) as revenue, date_trunc('month',order_purchase_timestamp)as months,
 product_category_name
@@ -119,28 +267,13 @@ select revenue, months, lag(revenue) over(partition by product_category_name ord
 from current_month_rev
 )
 select revenue, months, product_category_name, prev_month, revenue-prev_month as revenue_change,
-round(((revenue-prev_month)/prev_month)*100,2)
+round(((revenue-prev_month)/nullif(prev_month,0))*100,2)
 from prev_month_rev
 WHERE prev_month IS NOT NULL
 order by months;
 
 
-
--- with current_month_rev as(
--- select sum(price) as revenue, date_trunc('month',order_purchase_timestamp)as months,
--- product_category_name
--- from order_items o1
--- join orders o2 
--- 	on o1.order_id = o2.order_id 
--- join products p
--- 	on p.product_id = o1.product_id)
--- select revenue, lag(revenue) over (partition by product_category_name order by months) as prev_month, product_catrgory_name,
--- (revenue-prev_month)/prev_month * 100 as MoM_growth
--- from current_month_rev
--- order by months;
-
-
---18) How many orders did each customer make, and are they a one-time or repeat buyer?
+--17) How many orders did each customer make, and are they a one-time or repeat buyer?
 select count(order_id) as total_orders, customer_unique_id, 
 case 
 	when 
@@ -154,13 +287,6 @@ join customers c
 group by customer_unique_id
 order by total_orders desc;
 
-
--- select 
---     count(distinct customer_unique_id) as unique_customers,
---     count(*) as total_rows
--- from customers;
-
-
 --      One-Time vs Repeat Customer Distribution
 select 
 	count(*) filter(where total_orders = 1) as one_time_buyers,
@@ -173,7 +299,7 @@ join customers c
 group by customer_unique_id) abc;
 
 
---19) Revenue and Order Volume by Customer State
+--18) Revenue and Order Volume by Customer State
 select c.customer_state, count(distinct o1.order_id), sum(o2.price + o2.freight_value) as revenue 
 from customers c 
 join orders o1 
@@ -184,9 +310,7 @@ group by c.customer_state
 order by revenue desc;
 
 
-
-
---20)Perform RFM analysis to segment customers based on their purchasing behavior.
+--19)Perform RFM analysis to segment customers based on their purchasing behavior.
 with RFM as(
 select c.customer_unique_id, max(o.order_purchase_timestamp) as last_purchase,
 count(distinct o.order_id) as Frequency,
@@ -204,7 +328,7 @@ Frequency, Monetary,
 last_purchase as Recency
 from RFM;
 
-
+--20) Which products sold the most units?
 select p.product_id, count(*) as total_units_sold 
 from  products p
 join order_items o
