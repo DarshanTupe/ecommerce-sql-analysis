@@ -50,7 +50,7 @@ CREATE TABLE products (
 );
 
 
--- 1) Overall Busieness Performance Sumary
+-- 1) Overall Busieness Performance Summary
 select sum(p.payment_value) as total_revenue,
 count(distinct o.order_id) as total_orders,
 count(distinct c.customer_unique_id) as total_customers
@@ -343,6 +343,7 @@ join order_items o
 	on p.product_id  = o.product_id
 group by p.product_id
 order by total_units_sold desc;
+
 
 
 
