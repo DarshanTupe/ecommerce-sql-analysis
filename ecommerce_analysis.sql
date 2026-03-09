@@ -50,7 +50,7 @@ CREATE TABLE products (
 );
 
 
--- 1) Overall Buiseness Performance Sumary
+-- 1) Overall Busieness Performance Sumary
 select sum(p.payment_value) as total_revenue,
 count(distinct o.order_id) as total_orders,
 count(distinct c.customer_unique_id) as total_customers
@@ -197,29 +197,31 @@ from customers_total;
 
 
 --13) Month-over-Month Revenue Growth Analysis
-WITH monthly_revenue AS (
-    SELECT 
-        date_trunc('month', order_purchase_timestamp) AS months, 
-        SUM(p.payment_value) AS monthly_revenue
-    FROM payments p 
-    JOIN orders o 
-        ON o.order_id = p.order_id 
-    GROUP BY months
+with monthly_revenue as (
+   select
+        date_trunc('month', order_purchase_timestamp) as months, 
+        SUM(p.payment_value) as monthly_revenue
+    from payments p 
+    join orders o 
+        on o.order_id = p.order_id 
+    group by months
 ),
-lag_revenue AS (
-    SELECT 
+lag_revenue as (
+    select 
         months, 
         monthly_revenue, 
-        LAG(monthly_revenue) OVER (ORDER BY months) AS previous_month_revenue
-    FROM monthly_revenue
+        LAG(monthly_revenue) OVER (order by months) as previous_month_revenue
+    from monthly_revenue
 )
-SELECT 
+select
     months,
     monthly_revenue,
     previous_month_revenue,
-    (monthly_revenue - previous_month_revenue)
-/ previous_month_revenue * 100 AS growth_percentage
-FROM lag_revenue;
+round(
+((monthly_revenue - previous_month_revenue)
+/ nullif(previous_month_revenue,0)) * 100,2
+) as growth_percentage
+from lag_revenue;
 
 
 --14) Top 10 Customers by Revenue Contribution
@@ -341,5 +343,6 @@ join order_items o
 	on p.product_id  = o.product_id
 group by p.product_id
 order by total_units_sold desc;
+
 
 
