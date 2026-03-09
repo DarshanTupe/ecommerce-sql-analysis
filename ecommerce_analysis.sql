@@ -62,14 +62,17 @@ where o.order_status = 'delivered';
 
 -- 2) Identify the top 5 months with the highest number of orders
 select 
-	date_trunc('month', o.order_purchase_timestamp) as months,
-	count(o.order_id) as total_orders 
-from orders o 
-group by months order by 
-total_orders desc LIMIT 5;
+date_trunc('month', o.order_purchase_timestamp) as months,
+count(o.order_id) as total_orders
+from orders o
+where o.order_status = 'delivered'
+group by months
+order by total_orders desc
+limit 5;
+
 
 --  3) Calculate Average Order Value
-select round(sum(p.payment_value)/count(distinct o.order_id ),2) as avg_order_vqlue
+select round(sum(p.payment_value)/count(distinct o.order_id ),2) as avg_order_value
 from payments p
 join orders o 
 	on o.order_id = p.order_id
@@ -85,24 +88,25 @@ join orders o
 	on o.customer_id = c.customer_id 
 join payments p 
 	on p.order_id = o.order_id 
---where o.order_status = 'delivered'
+where o.order_status = 'delivered'
 group by c.customer_unique_id 
 order by total_spent desc;
 
 
 -- 5) What are the monthly revenue trends over time? 
-select 
-	date_trunc('month', o.order_purchase_timestamp ) as months, 
-	sum(payment_value) as revenue 
-from orders o 
-join payments p 
-	on p.order_id = o.order_id 
-group by months 
+select
+    date_trunc('month', o.order_purchase_timestamp) as months,
+    sum(payment_value) as revenue
+from orders o
+join payments p
+    on p.order_id = o.order_id
+where o.order_status = 'delivered'
+group by months
 order by months;
 
-
--- 6) Classify customers as one-time or repeat based on number of orders 
-select round(100 * count(*) filter(where total_orders > 1)/ count(*),2) as repeat_customer_percentage
+-- 6) Percentage of Repeat Customers
+select round(100 * count(*) filter(where total_orders > 1)/ 
+count(*),2) || '%' as repeat_customer_percentage
 from
  	(select c.customer_unique_id, count(o.order_id) as total_orders
 	from customers c
@@ -114,7 +118,7 @@ from
 
 -- 7)Calculate average delivery time for all orders
 select 
-	avg( order_delivered_customer_date - order_purchase_timestamp ) as dilivery_time 
+	avg( order_delivered_customer_date - order_purchase_timestamp ) as delivery_time 
 from orders
 where order_delivered_customer_date is not null;
 
@@ -129,7 +133,7 @@ select
 		then 'late order' 
 		else 'on time' 
 	end 
-	as dilivery_status 
+	as delivery_status 
 from orders;
 
 
@@ -137,7 +141,9 @@ from orders;
 select 
 	count(order_id) as late_orders 
 from orders 
-where order_delivered_customer_date > order_estimated_delivery_date;
+where order_status='delivered' and
+order_delivered_customer_date >
+order_estimated_delivery_date;
 
 
 -- 10) What Percentage of Orders Were Delivered Late? 
@@ -165,14 +171,14 @@ join orders o
 group by c.customer_unique_id
 )
 select date_trunc('month', first_purchase) as months,
-count(*) as new_cusromer
+count(*) as new_customer
 from first_order
 group by months
 order by months;
 
 
---12) Rank Customers by Total Spending
-with customers_total as (
+
+stomers_total as (
 	select 
 		c.customer_unique_id, 
 		sum(p.payment_value) as total_spent 
@@ -254,7 +260,7 @@ order by avg_order_value desc;
 
 --16) Month-over-Month Revenue Growth by Product Category
 with current_month_rev as(
-select sum(price) as revenue, date_trunc('month',order_purchase_timestamp)as months,
+select sum(o1.price + o1.freight_value) as revenue, date_trunc('month',order_purchase_timestamp)as months,
 product_category_name
 from order_items o1
 join orders o2 
@@ -334,4 +340,5 @@ from  products p
 join order_items o
 	on p.product_id  = o.product_id
 group by p.product_id
-order by total_units_sold;
+order by total_units_sold desc;
+
