@@ -177,8 +177,8 @@ group by months
 order by months;
 
 
-
-stomers_total as (
+--12) Rank customers by toyal spending 
+with customers_total as (
 	select 
 		c.customer_unique_id, 
 		sum(p.payment_value) as total_spent 
@@ -306,7 +306,7 @@ group by customer_unique_id) abc;
 
 
 --18) Revenue and Order Volume by Customer State
-select c.customer_state, count(distinct o1.order_id), sum(o2.price + o2.freight_value) as revenue 
+select c.customer_state, count(distinct o1.order_id) as total_orders, sum(o2.price + o2.freight_value) as revenue 
 from customers c 
 join orders o1 
 	on c.customer_id = o1.customer_id
@@ -341,4 +341,5 @@ join order_items o
 	on p.product_id  = o.product_id
 group by p.product_id
 order by total_units_sold desc;
+
 
