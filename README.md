@@ -1,145 +1,67 @@
-Ecommerce SQL Data Analysis
-Project Overview
+📊 Ecommerce SQL Data Analysis
 
-This project analyzes an ecommerce dataset using PostgreSQL to extract business insights related to customer behavior, revenue trends, product performance, and delivery efficiency.
+SQL analysis of an ecommerce dataset using PostgreSQL to uncover insights about revenue, customer behavior, delivery performance, and product trends.
 
-The analysis focuses on answering key business questions such as:
+📌 Project Overview
 
+This project explores an ecommerce dataset to answer key business questions such as:
 How much revenue does the business generate?
-
-How does revenue change over time?
-
-Which customers generate the most revenue?
-
+What are the monthly revenue trends?
+Who are the highest spending customers?
 What percentage of customers are repeat buyers?
+Which products sell the most units?
+The goal is to practice SQL-based business analysis using PostgreSQL.
 
-Which product categories perform best?
+🗄️ Database Schema
 
-How efficient is the delivery process?
+The project uses the following tables:
+Table	Description
+customers :	Customer location and identification data
+orders:	Order information and timestamps
+payments:	Payment information for each order
+order_items:	Items included in each order
+products:	Product details and categories
 
-The goal of this project is to practice SQL for business analysis using joins, aggregations, CTEs, and window functions.
+🧠 SQL Skills Demonstrated"
 
-Database Schema
-
-The dataset contains the following tables:
-
-Customers
-
-Customer location and identification information.
-
-Orders
-
-Information about each order including purchase time and delivery status.
-
-Payments
-
-Payment details for each order.
-
-Order Items
-
-Individual items purchased in each order.
-
-Products
-
-Product details and category information.
-
-SQL Concepts Used
-
-This project demonstrates the following SQL skills:
-
-Joins
-
+This project uses several important SQL techniques:
+JOIN operations
 Aggregations (SUM, COUNT, AVG)
-
-Date Functions
-
-CASE Statements
-
+Window Functions (RANK, LAG)
 Common Table Expressions (CTEs)
-
-Window Functions
-
-Ranking Functions
-
-LAG for time series analysis
-
+Date functions (date_trunc)
+CASE statements
 Filtering and grouping
 
-Business Questions Answered
+📈 Key Analyses Performed:
 Business Performance
-
-Overall revenue, total orders, and total customers.
-
-Top 5 months with the highest number of orders.
-
-Average Order Value (AOV).
-
-Total spending by each customer.
-
-Revenue Analysis
-
-Monthly revenue trends.
-
-Month-over-month revenue growth.
-
-Revenue contribution of top customers.
-
+Total revenue
+Total orders
+Total customers
+Average order value
 Customer Behavior
-
-Percentage of repeat customers.
-
-One-time vs repeat buyers.
-
-Number of new customers per month.
-
-Customer ranking by total spending.
-
-Delivery Performance
-
-Average delivery time.
-
-Order delivery classification (on-time vs late).
-
-Percentage of late deliveries.
-
-Product Performance
-
-Average order value by product category.
-
-Month-over-month revenue growth by category.
-
-Products with the highest number of units sold.
-
-Geographic Analysis
-
-Revenue and order volume by customer state.
-
+Repeat vs one-time customers
+Customer spending analysis
+Customer ranking by revenue
+Revenue Analysis
+Monthly revenue trends
+Month-over-month growth
+Delivery Performance=
+Average delivery time
+Late vs on-time deliveries
+Product Analysis
+Best selling products
+Revenue by product category
 Customer Segmentation
+RFM (Recency, Frequency, Monetary) analysis
 
-RFM (Recency, Frequency, Monetary) analysis to segment customers.
-
-Key Analysis Highlights
-
-Some insights derived from the analysis include:
-
-Identification of the top revenue generating months
-
-Understanding customer purchase behavior
-
-Measuring repeat customer percentage
-
-Evaluating delivery efficiency
-
-Finding top revenue contributing customers
-
-Determining best performing product categories
-
-Project Structure
+🗂️ Project Structure
 ecommerce-sql-analysis
 │
 ├── README.md
 └── ecommerce_analysis.sql
+🛠️ Tools Used
 
-Tools Used :
-PostgreSQL
 SQL
+
+PostgreSQL
